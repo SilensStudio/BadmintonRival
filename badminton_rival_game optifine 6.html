@@ -1,0 +1,1845 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Badminton Rival - Stickman Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Teko', sans-serif;
+            user-select: none;
+            overflow: hidden;
+            background-color: #0f172a;
+        }
+        canvas {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 12px;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 4px;
+        }
+        .glow-text {
+            text-shadow: 0 0 15px rgba(59, 130, 246, 0.6), 0 0 30px rgba(147, 51, 234, 0.4);
+        }
+
+        /* Responsive aspect ratios & touch safety */
+        .game-aspect {
+            aspect-ratio: 16 / 10;
+        }
+
+        @media (max-width: 768px) {
+            .game-aspect {
+                aspect-ratio: 20 / 9;
+            }
+        }
+
+        /* Auto Rotate Landscape mode ONLY on small mobile devices in portrait mode */
+        @media screen and (orientation: portrait) and (max-width: 900px) and (max-height: 1000px) and (pointer: coarse) {
+            #autoRotateWrapper {
+                transform: rotate(90deg);
+                transform-origin: center center;
+                width: 100vh !important;
+                height: 100vw !important;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                margin-top: -50vw;
+                margin-left: -50vh;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-1 sm:p-2 relative overflow-hidden">
+
+    <div id="autoRotateWrapper" class="w-full max-w-6xl flex items-center justify-center transition-all duration-300">
+    <div id="gameContainer" class="relative w-full bg-slate-800/80 backdrop-blur-md rounded-2xl p-2 sm:p-3 border border-slate-700 shadow-2xl flex flex-col items-center max-h-screen overflow-hidden">
+        
+        <!-- Header Bar -->
+        <div class="w-full flex flex-wrap justify-between items-center mb-1.5 px-3 py-1.5 bg-slate-900/60 rounded-xl border border-slate-700/50 gap-1.5 shrink-0">
+            <div class="flex items-center gap-2 sm:gap-3 text-xs sm:text-base">
+                <span class="text-amber-400 font-bold tracking-wider">💰 Tiền: <span id="coinDisplay">0</span>$</span>
+                <span class="text-purple-400 font-bold tracking-wider">🏆 ELO: <span id="eloDisplay">1000</span></span>
+                <span id="racketBonusDisplay" class="text-[10px] sm:text-xs bg-indigo-900/80 text-indigo-300 px-2 py-0.5 rounded border border-indigo-700">Vợt: +0% Sức mạnh</span>
+            </div>
+
+            <!-- User Auth & Friend Notification Bar -->
+            <div class="flex items-center gap-1.5 text-[11px] sm:text-xs bg-slate-800/80 px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-700">
+                <span id="userStatusText" class="text-slate-300 font-bold">👤 Player_1001</span>
+                
+                <!-- Notification Bell -->
+                <div class="relative">
+                    <button id="notifBellBtn" class="bg-slate-700 hover:bg-slate-600 text-amber-300 font-bold p-1 rounded-lg transition relative flex items-center justify-center text-xs">
+                        🔔
+                        <span id="notifBadge" class="absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center hidden">0</span>
+                    </button>
+                    <!-- Notification Popover -->
+                    <div id="notifPopover" class="absolute left-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3 hidden z-50 text-xs">
+                        <div class="font-bold text-slate-300 border-b border-slate-700 pb-1 mb-2">Thông báo lời mời:</div>
+                        <div id="inviteList" class="flex flex-col gap-2 max-h-40 overflow-y-auto">
+                            <p class="text-slate-500 text-center text-[11px]">Không có lời mời nào</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="authModalOpenBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-2 py-0.5 rounded transition">🔑 Đổi tài khoản</button>
+                <button id="logoutBtn" class="bg-red-600 hover:bg-red-500 text-white font-bold px-2 py-0.5 rounded hidden transition">Đăng xuất</button>
+            </div>
+        
+            <!-- Audio Controller & Custom Music Modal Dropdown -->
+            <div class="flex items-center gap-1.5 text-[11px] sm:text-xs relative">
+                <button id="bgmToggleBtn" class="bg-blue-600 hover:bg-blue-500 px-2.5 py-1 rounded-lg text-white font-bold border border-blue-400/40 shadow-md transition">
+                    🔊 Bật Âm Thanh
+                </button>
+
+                <button id="customMusicDropdownBtn" class="bg-indigo-900/90 hover:bg-indigo-800 px-2.5 py-1 rounded-lg text-white font-bold border border-indigo-400/50 shadow-md transition flex items-center gap-1">
+                    🎵 Tùy chọn Nhạc local
+                </button>
+
+                <div id="musicPopover" class="absolute right-0 top-10 w-72 bg-slate-900/95 border border-slate-700 rounded-xl p-4 shadow-2xl backdrop-blur-md hidden z-50">
+                    <p class="text-[11px] text-slate-300 mb-3 leading-tight">Chọn tệp MP3 tương ứng nếu muốn thay nhạc tự chọn:</p>
+                    <div class="flex flex-col gap-2.5 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Nhạc Menu:</label>
+                            <input type="file" id="menuMusicInput" accept="audio/*" class="w-full text-slate-400 text-[11px] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-slate-200 cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Nhạc Thi Đấu:</label>
+                            <input type="file" id="matchMusicInput" accept="audio/*" class="w-full text-slate-400 text-[11px] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-slate-200 cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Nhạc Ending:</label>
+                            <input type="file" id="endingMusicInput" accept="audio/*" class="w-full text-slate-400 text-[11px] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-slate-200 cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Game Screen & Main Menu overlay -->
+        <div class="relative w-full game-aspect flex items-center justify-center overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-inner max-h-[calc(100vh-80px)]">
+            <canvas id="gameCanvas" width="960" height="540" class="w-full h-full object-contain"></canvas>
+
+            <!-- Quit Match Button during match -->
+            <button id="quitMatchBtn" class="absolute top-2 right-3 bg-rose-600/80 hover:bg-rose-600 text-white font-bold text-xs px-2.5 py-1 rounded-lg border border-rose-400 shadow-lg hidden z-30 transition">
+                🚪 Thoát trận
+            </button>
+
+            <!-- Optional Intro Screen -->
+            <div id="introScreen" class="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center gap-4 z-30 transition-opacity duration-500 hidden">
+                <h1 class="text-4xl sm:text-5xl font-bold text-amber-400">BADMINTON RIVAL</h1>
+                <button id="startIntroBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-xl text-xl shadow-lg transition">BẮT ĐẦU CHƠI</button>
+            </div>
+
+            <!-- SilensStudio Brand Logo in Top Corner -->
+            <div id="brandLogoCorner" class="absolute top-2 left-3 flex items-center gap-1.5 bg-slate-900/70 backdrop-blur-md px-2.5 py-1 rounded-xl border border-slate-700/50 z-30 pointer-events-none select-none">
+                <span class="text-lg sm:text-xl">⚡</span>
+                <span class="text-xs sm:text-sm font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500">
+                    SilensStudio
+                </span>
+            </div>
+
+            <!-- Main Menu Layer -->
+            <div id="mainMenu" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-between p-3 sm:p-6 z-20 overflow-y-auto">
+                <div class="flex flex-col items-start gap-2 sm:gap-4">
+                    <h1 class="text-3xl sm:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 tracking-wider glow-text">
+                        BADMINTON RIVAL
+                    </h1>
+
+                    <button id="shopBtn" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-sm sm:text-xl px-4 sm:px-6 py-2 rounded-xl shadow-lg border border-amber-300 transform hover:scale-105 transition">
+                        🛒 CỬA HÀNG VỢT
+                    </button>
+                    
+                    <!-- Controls Instructions Box -->
+                    <div class="p-2 sm:p-3 bg-slate-900/80 border border-slate-700 rounded-xl text-xs text-slate-300 w-64 sm:w-80 shadow-md hidden sm:block">
+                        <div class="font-bold text-amber-400 mb-1 flex items-center gap-1">🎮 HƯỚNG DẪN ĐIỀU KHIỂN:</div>
+                        <div class="grid grid-cols-2 gap-2 text-[11px]">
+                            <div>
+                                <span class="font-bold text-blue-400">P1 (Trái):</span><br>
+                                • <span class="text-white">A / D</span>: Trái / Phải<br>
+                                • <span class="text-white">W</span>: Nhảy<br>
+                                • <span class="text-white">S</span>: Đập mạnh<br>
+                                • <span class="text-white">E</span>: Phông bổng
+                            </div>
+                            <div>
+                                <span class="font-bold text-rose-400">P2 (Phải):</span><br>
+                                • <span class="text-white">J / L</span>: Trái / Phải<br>
+                                • <span class="text-white">I</span>: Nhảy<br>
+                                • <span class="text-white">K</span>: Đập mạnh<br>
+                                • <span class="text-white">P</span>: Phông bổng
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side: 5 Main Game Modes -->
+                <div class="w-60 sm:w-80 flex flex-col gap-1.5 sm:gap-2.5 justify-center bg-slate-900/90 p-2 sm:p-3.5 rounded-2xl border border-slate-700/80 shadow-2xl">
+                    <button id="pveBtn" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-1.5 sm:py-2.5 px-3 rounded-xl shadow border border-blue-400/30 transform hover:-translate-y-0.5 transition text-xs sm:text-lg tracking-wide flex items-center justify-between">
+                        <span>🥊 ĐẤU BOT (300 LV)</span>
+                        <span class="text-[10px] sm:text-xs bg-blue-900/80 px-1.5 py-0.5 rounded border border-blue-400">PVE</span>
+                    </button>
+
+                    <button id="friendMatchBtn" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-1.5 sm:py-2.5 px-3 rounded-xl shadow border border-cyan-400/30 transform hover:-translate-y-0.5 transition text-xs sm:text-lg tracking-wide flex items-center justify-between">
+                        <span>🤝 ĐẤU VỚI BẠN BÈ</span>
+                        <span class="text-[10px] sm:text-xs bg-cyan-900/80 px-1.5 py-0.5 rounded border border-cyan-400">FRIEND</span>
+                    </button>
+
+                    <button id="onlineCasualBtn" class="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold py-1.5 sm:py-2.5 px-3 rounded-xl shadow border border-teal-400/30 transform hover:-translate-y-0.5 transition text-xs sm:text-lg tracking-wide flex items-center justify-between">
+                        <span>⚔️ ĐẤU THƯỜNG</span>
+                        <span class="text-[10px] sm:text-xs bg-teal-900/80 px-1.5 py-0.5 rounded border border-teal-400">ONLINE</span>
+                    </button>
+
+                    <button id="onlineRankedBtn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-1.5 sm:py-2.5 px-3 rounded-xl shadow border border-purple-400/30 transform hover:-translate-y-0.5 transition text-xs sm:text-lg tracking-wide flex items-center justify-between">
+                        <span>🏆 ĐẤU XẾP HẠNG</span>
+                        <span class="text-[10px] sm:text-xs bg-purple-900/80 px-1.5 py-0.5 rounded border border-purple-400">RANKED</span>
+                    </button>
+
+                    <button id="pvpBtn" class="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold py-1.5 sm:py-2.5 px-3 rounded-xl shadow border border-amber-400/30 transform hover:-translate-y-0.5 transition text-xs sm:text-lg tracking-wide flex items-center justify-between">
+                        <span>👥 2 NGƯỜI CHƠI</span>
+                        <span class="text-[10px] sm:text-xs bg-amber-900/80 px-1.5 py-0.5 rounded border border-amber-400">CÙNG MÁY</span>
+                    </button>
+
+                    <button id="practiceBtn" class="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-bold py-1.5 sm:py-2.5 px-3 rounded-xl shadow border border-emerald-400/30 transform hover:-translate-y-0.5 transition text-xs sm:text-lg tracking-wide flex items-center justify-between">
+                        <span>🎯 LUYỆN TẬP</span>
+                        <span class="text-[10px] sm:text-xs bg-emerald-900/80 px-1.5 py-0.5 rounded border border-emerald-400">PRACTICE</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Friend Match Invite Modal -->
+            <div id="friendInviteModal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden z-40">
+                <div class="bg-slate-900 border border-cyan-500/50 rounded-2xl p-6 w-full max-w-md shadow-2xl relative text-center">
+                    <button id="closeFriendModalBtn" class="absolute top-3 right-4 text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+                    <h3 class="text-2xl font-bold text-cyan-400 mb-2">🤝 ĐẤU VỚI BẠN BÈ</h3>
+                    <p class="text-xs text-slate-300 mb-4">Nhập tên tài khoản bạn bè để gửi lời mời thi đấu trực tiếp!</p>
+
+                    <div class="flex flex-col gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1 text-left">Tên bạn bè muốn mời:</label>
+                            <input type="text" id="friendUsernameInput" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-cyan-500 text-sm" placeholder="Ví dụ: Player_5432">
+                        </div>
+                        <button id="sendInviteBtn" class="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-2.5 rounded-xl transition text-lg shadow-md">
+                            📩 GỬI LỜI MỜI THI ĐẤU
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Online Matchmaking Searching Modal Overlay -->
+            <div id="matchmakingModal" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 hidden z-40 text-center">
+                <div class="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <h3 id="matchmakingTitle" class="text-3xl font-bold text-indigo-400 mb-2">Đang tìm đối thủ Online...</h3>
+                <p id="matchmakingTimer" class="text-4xl font-extrabold text-amber-400 mb-6">30s</p>
+                <button id="cancelMatchmakingBtn" class="bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 px-6 rounded-xl border border-rose-400 transition">
+                    HỦY TÌM TRẬN
+                </button>
+            </div>
+
+            <!-- Level Select Menu (300 Levels) -->
+            <div id="levelSelectMenu" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 hidden z-30">
+                <h2 class="text-3xl font-bold text-amber-400 tracking-wider mb-1">CHỌN CẤP ĐỘ ĐẤU BOT (300 LV)</h2>
+                <p class="text-slate-400 text-xs mb-3">Thắng từng level để mở khóa thử thách tiếp theo (Càng lên cao càng khó!)</p>
+                <div id="levelGrid" class="grid grid-cols-5 sm:grid-cols-10 gap-2 my-2 max-h-[320px] overflow-y-auto p-2 w-full max-w-3xl border border-slate-800 bg-slate-900/60 rounded-xl">
+                    <!-- 300 Levels generated dynamically -->
+                </div>
+                <button id="backFromLevelBtn" class="mt-3 bg-slate-700 hover:bg-slate-600 text-white font-bold py-1.5 px-8 rounded-xl border border-slate-500 transition">
+                    ⬅ QUAY LẠI MENU
+                </button>
+            </div>
+
+            <!-- Shop Modal -->
+            <div id="shopModal" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 hidden z-30">
+                <h2 class="text-3xl font-bold text-amber-400 tracking-wider mb-1">CỬA HÀNG VỢT (100 CẤP)</h2>
+                <p class="text-xs text-slate-300 mb-2">Mỗi cấp tăng <span class="text-emerald-400 font-bold">3% Sức mạnh lực đánh</span>!</p>
+
+                <div id="shopGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 my-1 max-h-[340px] overflow-y-auto p-2 w-full max-w-4xl border border-slate-800 bg-slate-900/60 rounded-xl">
+                    <!-- 100 Rackets generated dynamically -->
+                </div>
+
+                <button id="backFromShopBtn" class="mt-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-1.5 px-8 rounded-xl border border-slate-500 transition">
+                    ⬅ QUAY LẠI MENU
+                </button>
+            </div>
+
+            <!-- Custom Account Login/Register Modal -->
+            <div id="authModal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden z-40">
+                <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+                    <button id="closeAuthModalBtn" class="absolute top-3 right-4 text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+                    
+                    <div class="flex justify-around mb-6 border-b border-slate-800 pb-2">
+                        <button id="tabLoginBtn" class="text-xl font-bold text-indigo-400 border-b-2 border-indigo-400 pb-1">Đăng nhập</button>
+                        <button id="tabRegisterBtn" class="text-xl font-bold text-slate-500 hover:text-slate-300 pb-1">Đăng ký mới</button>
+                    </div>
+
+                    <form id="loginForm" class="flex flex-col gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Tên tài khoản</label>
+                            <input type="text" id="loginUsername" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-indigo-500 text-sm" placeholder="Nhập tên tài khoản">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Mật khẩu</label>
+                            <input type="password" id="loginPassword" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-indigo-500 text-sm" placeholder="••••••••">
+                        </div>
+                        <p id="authError" class="text-xs text-red-400 min-h-[16px] text-center"></p>
+                        <button type="submit" id="submitLoginBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl transition mt-2 text-lg">ĐĂNG NHẬP DỮ LIỆU</button>
+                    </form>
+
+                    <form id="registerForm" class="flex flex-col gap-3 hidden">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Tên tài khoản muốn tạo</label>
+                            <input type="text" id="regUsername" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-indigo-500 text-sm" placeholder="Ví dụ: badmintongod">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Mật khẩu</label>
+                            <input type="password" id="regPassword" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-indigo-500 text-sm" placeholder="Ít nhất 6 ký tự">
+                        </div>
+                        <p id="regError" class="text-xs text-red-400 min-h-[16px] text-center"></p>
+                        <button type="submit" id="submitRegBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition mt-2 text-lg">TẠO TÀI KHOẢN MỚI</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Custom Alert Dialog -->
+            <div id="customAlert" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
+                <div class="bg-slate-900 border border-amber-500/50 rounded-xl p-5 max-w-sm w-full text-center shadow-xl">
+                    <p id="alertMessageText" class="text-slate-200 text-base mb-4"></p>
+                    <button id="alertCloseBtn" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-1.5 px-6 rounded-lg transition">Đã hiểu</button>
+                </div>
+            </div>
+
+            <!-- Mobile Touch Controls -->
+            <div id="mobileControls" class="absolute bottom-2 left-0 right-0 px-2 py-1 flex justify-between items-end z-20 pointer-events-none select-none">
+                <div class="flex gap-1.5 pointer-events-auto scale-90 sm:scale-100 origin-bottom-left">
+                    <div class="grid grid-cols-2 gap-1 bg-slate-900/80 p-1 rounded-xl border border-blue-500/40 backdrop-blur-sm">
+                        <button id="btnP1Left" class="w-9 h-9 sm:w-11 sm:h-11 bg-blue-700/80 active:bg-blue-500 text-white font-black text-lg sm:text-xl rounded-lg shadow border border-blue-400/50 flex items-center justify-center active:scale-95 transition">◀</button>
+                        <button id="btnP1Right" class="w-9 h-9 sm:w-11 sm:h-11 bg-blue-700/80 active:bg-blue-500 text-white font-black text-lg sm:text-xl rounded-lg shadow border border-blue-400/50 flex items-center justify-center active:scale-95 transition">▶</button>
+                    </div>
+                    <div class="flex gap-1 bg-slate-900/80 p-1 rounded-xl border border-blue-500/40 backdrop-blur-sm">
+                        <button id="btnP1Jump" class="w-9 h-9 sm:w-11 sm:h-11 bg-indigo-600/80 active:bg-indigo-400 text-white font-bold text-[10px] sm:text-xs rounded-lg shadow border border-indigo-300/50 flex items-center justify-center active:scale-95 transition leading-tight">🦘<br>NHẢY</button>
+                        <button id="btnP1Smash" class="w-9 h-9 sm:w-11 sm:h-11 bg-red-600/80 active:bg-red-400 text-white font-bold text-[10px] sm:text-xs rounded-lg shadow border border-red-300/50 flex items-center justify-center active:scale-95 transition leading-tight">💥<br>ĐẬP</button>
+                        <button id="btnP1Lob" class="w-9 h-9 sm:w-11 sm:h-11 bg-amber-600/80 active:bg-amber-400 text-white font-bold text-[10px] sm:text-xs rounded-lg shadow border border-amber-300/50 flex items-center justify-center active:scale-95 transition leading-tight">🏸<br>BỔNG</button>
+                    </div>
+                </div>
+
+                <div id="p2TouchControls" class="flex gap-1.5 pointer-events-auto scale-90 sm:scale-100 origin-bottom-right">
+                    <div class="flex gap-1 bg-slate-900/80 p-1 rounded-xl border border-rose-500/40 backdrop-blur-sm">
+                        <button id="btnP2Lob" class="w-9 h-9 sm:w-11 sm:h-11 bg-amber-600/80 active:bg-amber-400 text-white font-bold text-[10px] sm:text-xs rounded-lg shadow border border-amber-300/50 flex items-center justify-center active:scale-95 transition leading-tight">🏸<br>BỔNG</button>
+                        <button id="btnP2Smash" class="w-9 h-9 sm:w-11 sm:h-11 bg-red-600/80 active:bg-red-400 text-white font-bold text-[10px] sm:text-xs rounded-lg shadow border border-red-300/50 flex items-center justify-center active:scale-95 transition leading-tight">💥<br>ĐẬP</button>
+                        <button id="btnP2Jump" class="w-9 h-9 sm:w-11 sm:h-11 bg-indigo-600/80 active:bg-indigo-400 text-white font-bold text-[10px] sm:text-xs rounded-lg shadow border border-indigo-300/50 flex items-center justify-center active:scale-95 transition leading-tight">🦘<br>NHẢY</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 bg-slate-900/80 p-1 rounded-xl border border-rose-500/40 backdrop-blur-sm">
+                        <button id="btnP2Left" class="w-9 h-9 sm:w-11 sm:h-11 bg-rose-700/80 active:bg-rose-500 text-white font-black text-lg sm:text-xl rounded-lg shadow border border-rose-400/50 flex items-center justify-center active:scale-95 transition">◀</button>
+                        <button id="btnP2Right" class="w-9 h-9 sm:w-11 sm:h-11 bg-rose-700/80 active:bg-rose-500 text-white font-black text-lg sm:text-xl rounded-lg shadow border border-rose-400/50 flex items-center justify-center active:scale-95 transition">▶</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'badminton-rival-app';
+        let firebaseConfig = {};
+        if (typeof __firebase_config !== 'undefined') {
+            try { firebaseConfig = JSON.parse(__firebase_config); } catch (e) { console.error(e); }
+        }
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+
+        // Ensure variables exist globally on window before module script runs
+        window.coins = parseInt(localStorage.getItem('badminton_coins') || '0');
+        window.userElo = parseInt(localStorage.getItem('badminton_elo') || '1000');
+        window.ownedRackets = JSON.parse(localStorage.getItem('badminton_rackets') || '[1]');
+        window.equippedRacket = parseInt(localStorage.getItem('badminton_equipped') || '1');
+        window.maxUnlockedLevel = parseInt(localStorage.getItem('badminton_max_level') || '1');
+
+        // Generate Random Player Name if not set
+        let randomUsername = localStorage.getItem('badminton_random_name');
+        if (!randomUsername) {
+            randomUsername = 'Player_' + Math.floor(1000 + Math.random() * 9000);
+            localStorage.setItem('badminton_random_name', randomUsername);
+        }
+
+        window.currentDisplayName = randomUsername;
+
+        window.showAlert = function(msg) {
+            document.getElementById('alertMessageText').innerText = msg;
+            document.getElementById('customAlert').classList.remove('hidden');
+        };
+
+        document.getElementById('alertCloseBtn').onclick = () => {
+            document.getElementById('customAlert').classList.add('hidden');
+        };
+
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.log("Auth init notice:", err);
+            }
+        }
+        initAuth();
+
+        onAuthStateChanged(auth, async (user) => {
+            currentUser = user;
+            if (user && !user.isAnonymous) {
+                const displayName = user.email ? user.email.split('@')[0] : randomUsername;
+                window.currentDisplayName = displayName;
+                document.getElementById('userStatusText').innerText = `👤 ${displayName}`;
+                document.getElementById('logoutBtn').classList.remove('hidden');
+                document.getElementById('authModalOpenBtn').classList.add('hidden');
+                await loadCloudGameData(user.uid);
+            } else {
+                window.currentDisplayName = randomUsername;
+                document.getElementById('userStatusText').innerText = `👤 ${randomUsername}`;
+                document.getElementById('logoutBtn').classList.add('hidden');
+                document.getElementById('authModalOpenBtn').classList.remove('hidden');
+            }
+        });
+
+        window.saveUserData = async function() {
+            localStorage.setItem('badminton_coins', window.coins);
+            localStorage.setItem('badminton_elo', window.userElo);
+            localStorage.setItem('badminton_rackets', JSON.stringify(window.ownedRackets));
+            localStorage.setItem('badminton_equipped', window.equippedRacket);
+            localStorage.setItem('badminton_max_level', window.maxUnlockedLevel);
+            if (typeof updateUI === 'function') updateUI();
+
+            if (currentUser && !currentUser.isAnonymous) {
+                try {
+                    const userDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'gamedata');
+                    await setDoc(userDocRef, {
+                        coins: window.coins,
+                        elo: window.userElo,
+                        ownedRackets: window.ownedRackets,
+                        equippedRacket: window.equippedRacket,
+                        maxUnlockedLevel: window.maxUnlockedLevel,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                } catch (e) {
+                    console.warn("Lưu đám mây không khả dụng, sử dụng lưu cục bộ:", e.message);
+                }
+            }
+        };
+
+        async function loadCloudGameData(uid) {
+            try {
+                const userDocRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'gamedata');
+                const docSnap = await getDoc(userDocRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    window.coins = data.coins ?? window.coins;
+                    window.userElo = data.elo ?? window.userElo;
+                    window.ownedRackets = data.ownedRackets ?? window.ownedRackets;
+                    window.equippedRacket = data.equippedRacket ?? window.equippedRacket;
+                    window.maxUnlockedLevel = data.maxUnlockedLevel ?? window.maxUnlockedLevel;
+                    
+                    localStorage.setItem('badminton_coins', window.coins);
+                    localStorage.setItem('badminton_elo', window.userElo);
+                    localStorage.setItem('badminton_rackets', JSON.stringify(window.ownedRackets));
+                    localStorage.setItem('badminton_equipped', window.equippedRacket);
+                    localStorage.setItem('badminton_max_level', window.maxUnlockedLevel);
+                    if (typeof updateUI === 'function') updateUI();
+                } else {
+                    window.saveUserData();
+                }
+            } catch (err) {
+                console.warn("Không thể tải tiến trình đám mây, dùng dữ liệu máy:", err.message);
+            }
+        }
+
+        // Online Matchmaking Searching Modal Overlay
+        const matchmakingModal = document.getElementById('matchmakingModal');
+        const matchmakingTitle = document.getElementById('matchmakingTitle');
+        const matchmakingTimer = document.getElementById('matchmakingTimer');
+        let matchmakingInterval = null;
+        let matchmakingTimeout = null;
+        let onlineUnsubscribe = null;
+        let activeRoomDocRef = null;
+
+        window.startOnlineMatchmaking = async function(modeTitle) {
+            if (typeof sound !== 'undefined') sound.init();
+            matchmakingTitle.innerText = `Đang tìm người chơi thật (${modeTitle})...`;
+            matchmakingModal.classList.remove('hidden');
+
+            let timeLeft = 45;
+            matchmakingTimer.innerText = `${timeLeft}s`;
+
+            if (matchmakingInterval) clearInterval(matchmakingInterval);
+            if (matchmakingTimeout) clearTimeout(clearTimeout(matchmakingTimeout));
+            if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+
+            // Bắt đầu đếm ngược
+            matchmakingInterval = setInterval(() => {
+                timeLeft--;
+                matchmakingTimer.innerText = `${timeLeft}s`;
+            }, 1000);
+
+            // Tự động hủy nếu sau 45s không có NGƯỜI CHƠI THẬT nào vào
+            matchmakingTimeout = setTimeout(async () => {
+                cancelMatchmaking();
+                showAlert(`⚠️ Không tìm thấy người chơi thật nào trực tuyến trong phòng ${modeTitle}. Vui lòng mời bạn bè hoặc thử lại sau!`);
+            }, 45000);
+
+            try {
+                const queueCollection = collection(db, 'artifacts', appId, 'public', 'matchmaking', modeTitle === 'Đấu Xếp Hạng' ? 'ranked' : 'casual');
+                const myPlayerName = window.currentDisplayName || 'Player_' + Math.floor(Math.random() * 8999 + 1000);
+                
+                const roomDoc = await addDoc(queueCollection, {
+                    host: myPlayerName,
+                    hostElo: userElo,
+                    status: 'waiting',
+                    createdAt: Date.now()
+                });
+                activeRoomDocRef = roomDoc;
+
+                // Lắng nghe xem có người chơi thật khác ghép trận không
+                onlineUnsubscribe = onSnapshot(roomDoc, (snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.data();
+                        if (data.status === 'matched') {
+                            cleanupMatchmaking();
+                            matchmakingModal.classList.add('hidden');
+                            showAlert(`⚡ Đã ghép trận người chơi thật: ${data.guest || 'Đối thủ'}! Bắt đầu thi đấu!`);
+                            if (typeof startMatch === 'function') startMatch(modeTitle === 'Đấu Xếp Hạng' ? 'RANKED' : 'ONLINE');
+                        }
+                    }
+                });
+            } catch (err) {
+                console.warn("Lỗi kết nối Server ghép trận:", err.message);
+            }
+        };
+
+        window.cancelMatchmaking = async function() {
+            cleanupMatchmaking();
+            if (activeRoomDocRef) {
+                try { await deleteDoc(activeRoomDocRef); } catch (e) {}
+                activeRoomDocRef = null;
+            }
+            matchmakingModal.classList.add('hidden');
+        }
+
+        function cleanupMatchmaking() {
+            if (matchmakingInterval) clearInterval(matchmakingInterval);
+            if (matchmakingTimeout) clearTimeout(clearTimeout(matchmakingTimeout));
+            if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+        }
+
+        const cancelBtn = document.getElementById('cancelMatchmakingBtn');
+        if (cancelBtn) {
+            cancelBtn.onclick = () => {
+                window.cancelMatchmaking();
+                showAlert('❌ Đã hủy tìm trận đấu trực tuyến.');
+            };
+        }
+
+        // Friends Invite System Logic
+        const friendInvites = [];
+        const notifBellBtn = document.getElementById('notifBellBtn');
+        const notifPopover = document.getElementById('notifPopover');
+        const notifBadge = document.getElementById('notifBadge');
+        const inviteList = document.getElementById('inviteList');
+
+        notifBellBtn.onclick = (e) => {
+            e.stopPropagation();
+            notifPopover.classList.toggle('hidden');
+        };
+
+        document.addEventListener('click', (e) => {
+            if (!notifPopover.contains(e.target) && e.target !== notifBellBtn) {
+                notifPopover.classList.add('hidden');
+            }
+        });
+
+        function renderInvites() {
+            if (friendInvites.length === 0) {
+                inviteList.innerHTML = `<p class="text-slate-500 text-center text-[11px]">Không có lời mời nào</p>`;
+                notifBadge.classList.add('hidden');
+            } else {
+                notifBadge.innerText = friendInvites.length;
+                notifBadge.classList.remove('hidden');
+                inviteList.innerHTML = '';
+                friendInvites.forEach((inv, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-700';
+                    div.innerHTML = `
+                        <div class="text-slate-200 font-bold">${inv.from}</div>
+                        <div class="flex gap-1">
+                            <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-2 py-1 rounded font-bold" onclick="acceptFriendInvite(${index})">Đồng ý</button>
+                            <button class="bg-rose-600 hover:bg-rose-500 text-white text-[10px] px-2 py-1 rounded font-bold" onclick="rejectFriendInvite(${index})">Từ chối</button>
+                        </div>
+                    `;
+                    inviteList.appendChild(div);
+                });
+            }
+        }
+
+        window.acceptFriendInvite = function(index) {
+            const inv = friendInvites.splice(index, 1)[0];
+            renderInvites();
+            notifPopover.classList.add('hidden');
+            if (typeof startMatch === 'function') startMatch('PVP');
+            showAlert(`🤝 Đã chấp nhận lời mời đấu từ ${inv.from}! Bắt đầu trận đấu!`);
+        };
+
+        window.rejectFriendInvite = function(index) {
+            friendInvites.splice(index, 1);
+            renderInvites();
+        };
+
+        document.getElementById('friendMatchBtn').onclick = () => {
+            if (typeof sound !== 'undefined') sound.init();
+            document.getElementById('friendInviteModal').classList.remove('hidden');
+        };
+
+        document.getElementById('closeFriendModalBtn').onclick = () => {
+            document.getElementById('friendInviteModal').classList.add('hidden');
+        };
+
+        document.getElementById('sendInviteBtn').onclick = () => {
+            const friendName = document.getElementById('friendUsernameInput').value.trim();
+            if (!friendName) {
+                showAlert('Vui lòng nhập tên bạn bè!');
+                return;
+            }
+            document.getElementById('friendInviteModal').classList.add('hidden');
+            showAlert(`📩 Đã gửi lời mời thi đấu đến ${friendName}! Vui lòng chờ đối thủ phản hồi.`);
+        };
+
+        // Account Auth UI logic
+        const authModal = document.getElementById('authModal');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const tabLoginBtn = document.getElementById('tabLoginBtn');
+        const tabRegisterBtn = document.getElementById('tabRegisterBtn');
+
+        document.getElementById('authModalOpenBtn').onclick = () => authModal.classList.remove('hidden');
+        document.getElementById('closeAuthModalBtn').onclick = () => authModal.classList.add('hidden');
+
+        tabLoginBtn.onclick = () => {
+            tabLoginBtn.className = "text-xl font-bold text-indigo-400 border-b-2 border-indigo-400 pb-1";
+            tabRegisterBtn.className = "text-xl font-bold text-slate-500 hover:text-slate-300 pb-1";
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+        };
+
+        tabRegisterBtn.onclick = () => {
+            tabRegisterBtn.className = "text-xl font-bold text-indigo-400 border-b-2 border-indigo-400 pb-1";
+            tabLoginBtn.className = "text-xl font-bold text-slate-500 hover:text-slate-300 pb-1";
+            registerForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+        };
+
+        registerForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const errorElement = document.getElementById('regError');
+            errorElement.innerText = '';
+
+            if (username.length < 3) {
+                errorElement.innerText = 'Tên tài khoản phải từ 3 ký tự!';
+                return;
+            }
+            if (password.length < 6) {
+                errorElement.innerText = 'Mật khẩu phải từ 6 ký tự!';
+                return;
+            }
+
+            const fakeEmail = `${username.toLowerCase().replace(/\s+/g, '')}@badmintonrival.game`;
+
+            try {
+                await createUserWithEmailAndPassword(auth, fakeEmail, password);
+                authModal.classList.add('hidden');
+                showAlert('🎉 Tạo tài khoản thành công! Dữ liệu game đã được lưu lên tài khoản.');
+            } catch (err) {
+                if (err.code === 'auth/email-already-in-use') {
+                    errorElement.innerText = 'Tên tài khoản này đã được tạo trước đó!';
+                } else {
+                    errorElement.innerText = 'Lỗi tạo tài khoản: ' + err.message;
+                }
+            }
+        };
+
+        loginForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorElement = document.getElementById('authError');
+            errorElement.innerText = '';
+
+            const fakeEmail = username.includes('@') ? username : `${username.toLowerCase().replace(/\s+/g, '')}@badmintonrival.game`;
+
+            try {
+                await signInWithEmailAndPassword(auth, fakeEmail, password);
+                authModal.classList.add('hidden');
+                showAlert('✅ Đăng nhập thành công! Tiến trình game đã khôi phục.');
+            } catch (err) {
+                errorElement.innerText = 'Tài khoản hoặc mật khẩu không đúng!';
+            }
+        };
+
+        document.getElementById('logoutBtn').onclick = async () => {
+            await signOut(auth);
+            await signInAnonymously(auth);
+            showAlert('Đã đăng xuất khỏi tài khoản.');
+        };
+    </script>
+
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = false;
+                this.currentType = null;
+                this.customTracks = { menu: null, match: null, ending: null };
+                this.audioElements = {
+                    menu: new Audio('https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=fun-pop-112154.mp3'),
+                    match: new Audio('https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=energy-sport-10659.mp3'),
+                    ending: new Audio('https://cdn.pixabay.com/download/audio/2021/09/06/audio_8c87c2b04f.mp3?filename=victory-10103.mp3')
+                };
+
+                this.audioElements.menu.loop = true;
+                this.audioElements.match.loop = true;
+                this.audioElements.ending.loop = false;
+
+                this.audioElements.menu.volume = 0.5;
+                this.audioElements.match.volume = 0.5;
+                this.audioElements.ending.volume = 0.6;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                this.enabled = true;
+            }
+
+            setCustomTrack(type, file) {
+                const url = URL.createObjectURL(file);
+                if (this.customTracks[type]) this.customTracks[type].pause();
+                const audio = new Audio(url);
+                audio.loop = type !== 'ending';
+                audio.volume = 0.6;
+                this.customTracks[type] = audio;
+
+                if (this.currentType === type && this.enabled) {
+                    this.playSynthBGM(type);
+                }
+            }
+
+            playSynthBGM(type) {
+                if (!this.enabled) return;
+                this.stopBGM();
+                this.currentType = type;
+                const targetAudio = this.customTracks[type] || this.audioElements[type];
+                if (targetAudio) {
+                    targetAudio.currentTime = 0;
+                    targetAudio.play().catch(() => {});
+                }
+            }
+
+            stopBGM() {
+                Object.values(this.customTracks).forEach(audio => { if (audio) { audio.pause(); audio.currentTime = 0; } });
+                Object.values(this.audioElements).forEach(audio => { audio.pause(); audio.currentTime = 0; });
+                this.currentType = null;
+            }
+
+            playHitSound(isSmash = false) {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.type = isSmash ? 'sawtooth' : 'sine';
+                osc.frequency.setValueAtTime(isSmash ? 600 : 350, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.15);
+
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            // Loud Whistle sound effect on scoring
+            playWhistleSound() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                
+                // Primary high-pitch whistle wave
+                const osc1 = this.ctx.createOscillator();
+                const gain1 = this.ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(2600, now);
+                osc1.frequency.setValueAtTime(2800, now + 0.08);
+                osc1.frequency.setValueAtTime(2600, now + 0.16);
+
+                gain1.gain.setValueAtTime(0, now);
+                gain1.gain.linearRampToValueAtTime(0.8, now + 0.05);
+                gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+                // Whistle vibration (frequency modulation)
+                const lfo = this.ctx.createOscillator();
+                const lfoGain = this.ctx.createGain();
+                lfo.frequency.value = 35;
+                lfoGain.gain.value = 120;
+
+                lfo.connect(osc1.frequency);
+                osc1.connect(gain1);
+                gain1.connect(this.ctx.destination);
+
+                lfo.start(now);
+                osc1.start(now);
+                lfo.stop(now + 0.5);
+                osc1.stop(now + 0.5);
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const GAME_WIDTH = 960;
+        const GAME_HEIGHT = 540;
+        const GROUND_Y = 460;
+        const NET_X = GAME_WIDTH / 2;
+        const NET_HEIGHT = 100;
+        const NET_TOP = GROUND_Y - NET_HEIGHT;
+
+        let gameState = 'MENU';
+        let gameMode = 'PVE';
+        let selectedLevel = 1;
+
+        // Use global window variables
+        if (typeof window.maxUnlockedLevel === 'undefined') window.maxUnlockedLevel = parseInt(localStorage.getItem('badminton_max_level') || '1');
+        if (typeof window.coins === 'undefined') window.coins = parseInt(localStorage.getItem('badminton_coins') || '0');
+        if (typeof window.userElo === 'undefined') window.userElo = parseInt(localStorage.getItem('badminton_elo') || '1000');
+        if (typeof window.ownedRackets === 'undefined') window.ownedRackets = JSON.parse(localStorage.getItem('badminton_rackets') || '[1]');
+        if (typeof window.equippedRacket === 'undefined') window.equippedRacket = parseInt(localStorage.getItem('badminton_equipped') || '1');
+
+        let endingTimer = 0;
+        let balloons = [];
+        let menuStickmanAnimAngle = 0;
+        let pointBannerText = "";
+        let pointBannerTimer = 0;
+
+        /* --- BALLOON CLASS FOR CELEBRATION --- */
+        class Balloon {
+            constructor() {
+                this.x = Math.random() * GAME_WIDTH;
+                this.y = GAME_HEIGHT + 20 + Math.random() * 50;
+                this.vy = -1.5 - Math.random() * 2;
+                this.vx = (Math.random() - 0.5) * 1;
+                this.radius = 12 + Math.random() * 8;
+                this.color = `hsl(${Math.random() * 360}, 80%, 60%)`;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y + this.radius);
+                ctx.lineTo(this.x, this.y + this.radius + 15);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        function getRacketMultiplier() {
+            return 1 + (window.equippedRacket - 1) * 0.035;
+        }
+
+        /* --- MINECRAFT / PIXEL STYLE CHARACTER CLASS --- */
+        class StickmanPlayer {
+            constructor(id, x, color) {
+                this.id = id;
+                this.startX = x;
+                this.x = x;
+                this.y = GROUND_Y;
+                this.vx = 0;
+                this.vy = 0;
+                this.height = 100;
+                this.color = color;
+                this.isGrounded = true;
+                this.score = 0;
+                this.facing = id === 1 ? 1 : -1;
+                this.isSwinging = false;
+                this.swingProgress = 0;
+                this.walkCycle = 0;
+                this.lastActionWasSmash = false;
+            }
+
+            reset(x) {
+                this.x = x;
+                this.y = GROUND_Y;
+                this.vx = 0;
+                this.vy = 0;
+                this.isGrounded = true;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (!this.isGrounded) {
+                    this.vy += 0.65; // Tăng trọng lực nhảy để đáp đất nhanh chuẩn bị đập tiếp
+                }
+
+                if (this.y >= GROUND_Y) {
+                    this.y = GROUND_Y;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                }
+
+                if (Math.abs(this.vx) > 0.1) {
+                    this.walkCycle += 0.35;
+                } else {
+                    this.walkCycle = 0;
+                }
+
+                if (this.id === 1) {
+                    if (this.x < 30) this.x = 30;
+                    if (this.x > NET_X - 20) this.x = NET_X - 20;
+                } else {
+                    if (this.x < NET_X + 20) this.x = NET_X + 20;
+                    if (this.x > GAME_WIDTH - 30) this.x = GAME_WIDTH - 30;
+                }
+
+                if (this.isSwinging) {
+                    this.swingProgress += 0.35; // Tùy chỉnh vung vợt nhanh hơn
+                    if (this.swingProgress >= Math.PI) {
+                        this.isSwinging = false;
+                        this.swingProgress = 0;
+                    }
+                }
+            }
+
+            jump() {
+                if (this.isGrounded) {
+                    this.vy = -15.5; // Nhảy cao & nhanh hơn
+                    this.isGrounded = false;
+                }
+            }
+
+            swing() {
+                this.isSwinging = true;
+                this.swingProgress = 0;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Limb angles based on walking cycle
+                const legAngle = Math.sin(this.walkCycle) * 0.6;
+                const leg1 = legAngle;
+                const leg2 = -legAngle;
+
+                // Pixel Minecraft-style dimensions
+                const headSize = 22;
+                const headY = -this.height;
+                const bodyW = 18;
+                const bodyH = 34;
+                const bodyY = headY + headSize;
+                const armW = 8;
+                const armH = 30;
+                const legW = 8;
+                const legH = 34;
+
+                // 1. Draw Back Leg
+                ctx.save();
+                ctx.translate(-legW / 2 + (this.facing * 3), bodyY + bodyH);
+                ctx.rotate(leg2);
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(-legW / 2, 0, legW, legH);
+                // Shoe
+                ctx.fillStyle = '#64748b';
+                ctx.fillRect(-legW / 2, legH - 6, legW + 2, 6);
+                ctx.restore();
+
+                // 2. Draw Front Leg
+                ctx.save();
+                ctx.translate(-legW / 2 - (this.facing * 3), bodyY + bodyH);
+                ctx.rotate(leg1);
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(-legW / 2, 0, legW, legH);
+                // Shoe
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(-legW / 2, legH - 6, legW + 2, 6);
+                ctx.restore();
+
+                // 3. Draw Body (Torso)
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-bodyW / 2, bodyY, bodyW, bodyH);
+                // Shirt detail / shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(-bodyW / 2, bodyY + bodyH - 8, bodyW, 8);
+
+                // 4. Draw Back Arm (Off-hand)
+                ctx.save();
+                ctx.translate(-this.facing * 6, bodyY + 4);
+                ctx.rotate(-leg1 * 0.8);
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                ctx.fillRect(-armW / 2, 0, armW, armH);
+                ctx.fillStyle = '#fca5a5';
+                ctx.fillRect(-armW / 2, armH - 8, armW, 8);
+                ctx.restore();
+
+                // 5. Draw Head
+                ctx.fillStyle = '#fca5a5'; // Skin color
+                ctx.fillRect(-headSize / 2, headY, headSize, headSize);
+                
+                // Hair (Minecraft style block)
+                ctx.fillStyle = (this.id === 1) ? '#451a03' : '#7f1d1d';
+                ctx.fillRect(-headSize / 2 - 1, headY - 2, headSize + 2, 7);
+                
+                // Eyes & Face direction
+                ctx.fillStyle = '#000000';
+                const eyeX = this.facing > 0 ? headSize / 4 - 2 : -headSize / 4 - 2;
+                ctx.fillRect(eyeX, headY + 7, 4, 4);
+
+                // 6. Draw Main Arm & Racket with Grid Mesh Lines
+                let swingAngle = -0.3 * this.facing;
+                if (this.isSwinging) {
+                    swingAngle = (Math.sin(this.swingProgress) * 2.2 - 0.3) * this.facing;
+                }
+
+                ctx.save();
+                ctx.translate(this.facing * 6, bodyY + 4);
+                ctx.rotate(swingAngle);
+
+                // Arm
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-armW / 2, 0, armW, armH);
+                ctx.fillStyle = '#fca5a5';
+                ctx.fillRect(-armW / 2, armH - 8, armW, 8);
+
+                // Racket Handle
+                ctx.translate(0, armH - 4);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(this.facing * 12, -26);
+                ctx.stroke();
+
+                // Racket Head Ellipse
+                ctx.translate(this.facing * 12, -26);
+                ctx.strokeStyle = (this.id === 1) ? `hsl(${(window.equippedRacket * 3.6) % 360}, 80%, 50%)` : '#f43f5e';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.ellipse(0, -18, 12, 16, 0, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Detailed Racket Mesh Grid Lines
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+                ctx.lineWidth = 1;
+
+                // Vertical Mesh Lines
+                for (let mx = -8; mx <= 8; mx += 4) {
+                    ctx.beginPath();
+                    const h = Math.sqrt(Math.max(0, 1 - (mx * mx) / 144)) * 14;
+                    ctx.moveTo(mx, -18 - h);
+                    ctx.lineTo(mx, -18 + h);
+                    ctx.stroke();
+                }
+
+                // Horizontal Mesh Lines
+                for (let my = -28; my <= -8; my += 4) {
+                    ctx.beginPath();
+                    const dy = my - (-18);
+                    const w = Math.sqrt(Math.max(0, 1 - (dy * dy) / 256)) * 10;
+                    ctx.moveTo(-w, my);
+                    ctx.lineTo(w, my);
+                    ctx.stroke();
+                }
+                ctx.restore();
+
+                ctx.restore();
+                ctx.restore();
+            }
+        }
+
+        /* --- SHUTTLECOCK CLASS --- */
+        class Shuttlecock {
+            constructor() {
+                this.reset(1);
+            }
+
+            reset(serverPlayerId) {
+                this.x = serverPlayerId === 1 ? 200 : GAME_WIDTH - 200;
+                this.y = 220;
+                this.vx = serverPlayerId === 1 ? 3 : -3;
+                this.vy = -4;
+                this.radius = 8;
+                this.isDead = false;
+                this.lastHitBy = serverPlayerId;
+            }
+
+            update(p1, p2) {
+                if (this.isDead) return;
+
+                this.vy += 0.28; // Tăng tốc độ rơi của cầu
+                this.vx *= 0.996;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wall bounces
+                if (this.x - this.radius <= 10) {
+                    this.x = 10 + this.radius;
+                    this.vx = -this.vx * 0.7;
+                }
+                if (this.x + this.radius >= GAME_WIDTH - 10) {
+                    this.x = GAME_WIDTH - 10 - this.radius;
+                    this.vx = -this.vx * 0.7;
+                }
+
+                if (this.y - this.radius <= 10) {
+                    this.y = 10 + this.radius;
+                    this.vy = Math.abs(this.vy) * 0.5;
+                }
+
+                // Net collision
+                if (Math.abs(this.x - NET_X) < this.radius + 4 && this.y >= NET_TOP) {
+                    if (this.y < NET_TOP + 12) {
+                        this.vy = -Math.abs(this.vy) * 0.6;
+                        this.y = NET_TOP - this.radius;
+                    } else {
+                        this.vx *= 0.1;
+                        this.vy = Math.max(this.vy, 2);
+                    }
+                }
+
+                // Ground landing score check
+                if (this.y + this.radius >= GROUND_Y) {
+                    this.y = GROUND_Y - this.radius;
+                    this.isDead = true;
+                    handlePointScored(this.x < NET_X ? 2 : 1);
+                }
+
+                this.checkPlayerHit(p1);
+                this.checkPlayerHit(p2);
+            }
+
+            checkPlayerHit(p) {
+                const headY = p.y - p.height;
+                const dist = Math.hypot(this.x - p.x, this.y - headY);
+                if (dist < 70 && p.isSwinging) {
+                    sound.playHitSound(p.lastActionWasSmash);
+                    this.lastHitBy = p.id;
+
+                    const powerMult = (p.id === 1) ? getRacketMultiplier() : (1 + selectedLevel * 0.012);
+
+                    if (p.lastActionWasSmash) {
+                        // Tăng mạnh tốc độ ĐẬP CẦU (SMASH) cắm sân cực nhanh
+                        this.vx = p.facing * (18 + Math.random() * 3) * powerMult;
+                        this.vy = (12 + Math.random() * 3) * powerMult;
+                    } else {
+                        // Phông bổng đường cầu cao
+                        this.vx = p.facing * (9.5 + Math.random() * 2) * powerMult;
+                        this.vy = - (14.5 + Math.random() * 2) * powerMult;
+                    }
+                    p.isSwinging = false;
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Shuttlecone cork/base feather lines
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x - this.vx * 2, this.y - this.vy * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // Initialize Key Handler & Game Entities
+        const keys = {};
+        window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+        window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+        // Mobile Controls Listeners
+        const bindTouchBtn = (id, key) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const startHandler = (e) => { e.preventDefault(); keys[key] = true; };
+            const endHandler = (e) => { e.preventDefault(); keys[key] = false; };
+            btn.addEventListener('touchstart', startHandler);
+            btn.addEventListener('touchend', endHandler);
+            btn.addEventListener('mousedown', startHandler);
+            btn.addEventListener('mouseup', endHandler);
+        };
+
+        bindTouchBtn('btnP1Left', 'a');
+        bindTouchBtn('btnP1Right', 'd');
+        bindTouchBtn('btnP1Jump', 'w');
+        bindTouchBtn('btnP1Smash', 's');
+        bindTouchBtn('btnP1Lob', 'e');
+
+        bindTouchBtn('btnP2Left', 'j');
+        bindTouchBtn('btnP2Right', 'l');
+        bindTouchBtn('btnP2Jump', 'i');
+        bindTouchBtn('btnP2Smash', 'k');
+        bindTouchBtn('btnP2Lob', 'p');
+
+        const p1 = new StickmanPlayer(1, 200, '#38bdf8');
+        const p2 = new StickmanPlayer(2, 760, '#f43f5e');
+        const shuttle = new Shuttlecock();
+
+        function updateBotAI() {
+            if (gameMode !== 'PVE' && gameMode !== 'PRACTICE' && gameMode !== 'ONLINE' && gameMode !== 'RANKED') return;
+
+            p2.vx = 0;
+            const reactionSpeed = Math.min(0.95, 0.45 + selectedLevel * 0.003);
+            const targetX = shuttle.x > NET_X ? shuttle.x : NET_X + 150;
+
+            if (p2.x < targetX - 25) p2.vx = 8.5 * reactionSpeed;
+            else if (p2.x > targetX + 25) p2.vx = -8.5 * reactionSpeed;
+
+            const dist = Math.hypot(shuttle.x - p2.x, shuttle.y - (p2.y - p2.height));
+            if (dist < 110 && shuttle.x > NET_X) {
+                if (shuttle.y < p2.y - 70) {
+                    p2.jump();
+                }
+                p2.lastActionWasSmash = Math.random() < 0.6;
+                p2.swing();
+            }
+        }
+
+        function handleInput() {
+            if (gameState !== 'PLAYING' && gameState !== 'ENDING') return;
+
+            // Tăng tốc độ di chuyển ngang của nhân vật từ 6 lên 8.5
+            p1.vx = 0;
+            if (keys['a']) p1.vx = -8.5;
+            if (keys['d']) p1.vx = 8.5;
+
+            if (keys['w']) p1.jump();
+            if (keys['s']) {
+                p1.lastActionWasSmash = true;
+                p1.swing();
+            }
+            if (keys['e']) {
+                p1.lastActionWasSmash = false;
+                p1.swing();
+            }
+
+            if (gameMode === 'PVP' || gameState === 'ENDING') {
+                p2.vx = 0;
+                if (keys['j']) p2.vx = -8.5;
+                if (keys['l']) p2.vx = 8.5;
+
+                if (keys['i']) p2.jump();
+                if (keys['k']) {
+                    p2.lastActionWasSmash = true;
+                    p2.swing();
+                }
+                if (keys['p']) {
+                    p2.lastActionWasSmash = false;
+                    p2.swing();
+                }
+            }
+        }
+
+        function handlePointScored(winnerId) {
+            if (winnerId === 1) p1.score++;
+            else p2.score++;
+
+            // Trigger whistle sound
+            sound.playWhistleSound();
+
+            // Display scorer name banner
+            const scorerName = (winnerId === 1) ? (window.currentDisplayName || 'NGƯỜI CHƠI 1') : (gameMode === 'PVE' ? 'BOT' : 'NGƯỜI CHƠI 2');
+            pointBannerText = `⚽ ${scorerName} GHI BÀN! +1 ĐIỂM ⚽`;
+            pointBannerTimer = 90; // Frame duration (~1.5s)
+
+            for (let i = 0; i < 15; i++) {
+                balloons.push(new Balloon());
+            }
+
+            if (p1.score >= 11 || p2.score >= 11) {
+                const matchWinner = p1.score >= 11 ? 1 : 2;
+                endGame(matchWinner);
+            } else {
+                setTimeout(() => {
+                    p1.reset(200);
+                    p2.reset(760);
+                    shuttle.reset(winnerId);
+                }, 1000);
+            }
+        }
+
+        /* --- 10 SECONDS FREE MOVEMENT CELEBRATION UPON WINNING --- */
+        let celebrationCountdown = 10;
+        let celebrationInterval = null;
+
+        function endGame(winnerId) {
+            gameState = 'ENDING';
+            document.getElementById('quitMatchBtn').classList.add('hidden');
+            celebrationCountdown = 10;
+            sound.playSynthBGM('ending');
+
+            if (winnerId === 1) {
+                const reward = 60 + selectedLevel * 5;
+                window.coins += reward;
+                
+                // Cập nhật điểm ELO khi chiến thắng
+                if (gameMode === 'ONLINE' || gameMode === 'RANKED') {
+                    window.userElo += 25;
+                }
+
+                if (selectedLevel >= window.maxUnlockedLevel && window.maxUnlockedLevel < 300) {
+                    window.maxUnlockedLevel = selectedLevel + 1;
+                }
+            } else {
+                // Trừ ELO khi thua ở chế độ Đấu Rank / Online
+                if (gameMode === 'ONLINE' || gameMode === 'RANKED') {
+                    window.userElo = Math.max(0, window.userElo - 15);
+                }
+            }
+            window.saveUserData();
+
+            if (celebrationInterval) clearInterval(celebrationInterval);
+            celebrationInterval = setInterval(() => {
+                celebrationCountdown--;
+                if (celebrationCountdown <= 0) {
+                    clearInterval(celebrationInterval);
+                    gameState = 'MENU';
+                    document.getElementById('mainMenu').classList.remove('hidden');
+                    sound.playSynthBGM('menu');
+                }
+            }, 1000);
+        }
+
+        // Thoát trận giữa chừng
+        function quitCurrentMatch() {
+            if (gameState !== 'PLAYING') return;
+
+            if (gameMode === 'RANKED' || gameMode === 'ONLINE') {
+                const penaltyElo = 30;
+                window.userElo = Math.max(0, window.userElo - penaltyElo);
+                window.saveUserData();
+                showAlert(`⚠️ Bạn đã thoát trận đấu Rank giữa chừng! Bị phạt trừ -${penaltyElo} ELO!`);
+            } else {
+                showAlert('🚪 Đã thoát trận đấu.');
+            }
+
+            gameState = 'MENU';
+            document.getElementById('quitMatchBtn').classList.add('hidden');
+            document.getElementById('mainMenu').classList.remove('hidden');
+            sound.playSynthBGM('menu');
+        }
+
+        document.getElementById('quitMatchBtn').onclick = () => {
+            quitCurrentMatch();
+        };
+
+        function drawCourt() {
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            bgGrad.addColorStop(0, '#0f172a');
+            bgGrad.addColorStop(1, '#1e293b');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(0, GROUND_Y - 120, GAME_WIDTH, 120);
+            ctx.fillStyle = '#475569';
+            for (let i = 0; i < GAME_WIDTH; i += 40) {
+                ctx.fillRect(i, GROUND_Y - 100, 30, 100);
+            }
+
+            ctx.fillStyle = '#059669';
+            ctx.fillRect(0, GROUND_Y, GAME_WIDTH, GAME_HEIGHT - GROUND_Y);
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(20, GROUND_Y, GAME_WIDTH - 40, 70);
+            ctx.beginPath();
+            ctx.moveTo(NET_X, GROUND_Y);
+            ctx.lineTo(NET_X, GROUND_Y + 70);
+            ctx.stroke();
+
+            // Net Post
+            ctx.strokeStyle = '#f8fafc';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(NET_X, GROUND_Y);
+            ctx.lineTo(NET_X, NET_TOP);
+            ctx.stroke();
+
+            // Net Mesh
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            for (let y = NET_TOP; y < GROUND_Y; y += 10) {
+                ctx.beginPath();
+                ctx.moveTo(NET_X - 4, y);
+                ctx.lineTo(NET_X + 4, y);
+                ctx.stroke();
+            }
+
+            // Scoreboard UI
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(GAME_WIDTH / 2 - 90, 15, 180, 50);
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(GAME_WIDTH / 2 - 90, 15, 180, 50);
+
+            ctx.font = 'bold 32px Teko, sans-serif';
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillText(p1.score, GAME_WIDTH / 2 - 50, 50);
+            ctx.fillStyle = '#f43f5e';
+            ctx.fillText(p2.score, GAME_WIDTH / 2 + 35, 50);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('-', GAME_WIDTH / 2 - 5, 48);
+
+            // Scorer Banner overlay at top of screen
+            if (pointBannerTimer > 0) {
+                pointBannerTimer--;
+                ctx.save();
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.fillRect(GAME_WIDTH / 2 - 220, 75, 440, 42);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(GAME_WIDTH / 2 - 220, 75, 440, 42);
+
+                ctx.font = 'bold 26px Teko, sans-serif';
+                ctx.fillStyle = '#f59e0b';
+                ctx.textAlign = 'center';
+                ctx.fillText(pointBannerText, GAME_WIDTH / 2, 104);
+                ctx.restore();
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            if (gameState === 'PLAYING') {
+                handleInput();
+                updateBotAI();
+
+                p1.update();
+                p2.update();
+                shuttle.update(p1, p2);
+
+                balloons.forEach((b, idx) => {
+                    b.update();
+                    if (b.y < -30) balloons.splice(idx, 1);
+                });
+
+                drawCourt();
+                balloons.forEach(b => b.draw(ctx));
+                p1.draw(ctx);
+                p2.draw(ctx);
+                shuttle.draw(ctx);
+
+            } else if (gameState === 'ENDING') {
+                // Free movement allowed for 10 seconds!
+                handleInput();
+
+                p1.update();
+                p2.update();
+
+                ctx.save();
+                const winner = p1.score >= 11 ? p1 : p2;
+                const zoomScale = 1.6;
+                // Center camera on winner's upper body
+                const focusX = winner.x;
+                const focusY = winner.y - winner.height / 2;
+
+                ctx.translate(GAME_WIDTH / 2, GAME_HEIGHT / 2);
+                ctx.scale(zoomScale, zoomScale);
+                ctx.translate(-focusX, -focusY);
+
+                drawCourt();
+                balloons.forEach((b, idx) => {
+                    b.update();
+                    b.draw(ctx);
+                });
+
+                p1.draw(ctx);
+                p2.draw(ctx);
+
+                ctx.restore();
+
+                // Victory celebration overlay text (Without countdown subtext)
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                ctx.fillRect(GAME_WIDTH / 2 - 250, 40, 500, 60);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(GAME_WIDTH / 2 - 250, 40, 500, 60);
+
+                const winnerText = p1.score >= 11 ? '🎉 NGƯỜI CHƠI 1 CHIẾN THẮNG!' : '🤖 BOT CHIẾN THẮNG!';
+                ctx.font = 'bold 36px Teko, sans-serif';
+                ctx.fillStyle = p1.score >= 11 ? '#38bdf8' : '#f43f5e';
+                ctx.textAlign = 'center';
+                ctx.fillText(winnerText, GAME_WIDTH / 2, 82);
+                ctx.textAlign = 'left';
+
+            } else if (gameState === 'MENU') {
+                drawCourt();
+
+                // Animated Menu Stickman under the logo
+                menuStickmanAnimAngle += 0.05;
+                const menuStickmanX = GAME_WIDTH / 2 - 90;
+                const dummyP = new StickmanPlayer(1, menuStickmanX, '#38bdf8');
+                dummyP.walkCycle = menuStickmanAnimAngle;
+                dummyP.draw(ctx);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateUI() {
+            document.getElementById('coinDisplay').innerText = window.coins;
+            if (document.getElementById('eloDisplay')) {
+                document.getElementById('eloDisplay').innerText = window.userElo;
+            }
+            document.getElementById('racketBonusDisplay').innerText = `Vợt #${window.equippedRacket}: +${Math.round((window.equippedRacket - 1) * 3.5)}% Sức mạnh`;
+        }
+
+        /* --- INTRO SCREEN EVENT HANDLER --- */
+        const introScreen = document.getElementById('introScreen');
+        const startIntroBtn = document.getElementById('startIntroBtn');
+        const mainMenu = document.getElementById('mainMenu');
+
+        if (startIntroBtn && introScreen) {
+            startIntroBtn.onclick = () => {
+                sound.init();
+                sound.playSynthBGM('menu');
+                
+                // Fade out intro transition
+                introScreen.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => {
+                    introScreen.classList.add('hidden');
+                    if (mainMenu) mainMenu.classList.remove('hidden');
+                }, 700);
+            };
+        }
+
+        function buildLevelGrid() {
+            const grid = document.getElementById('levelGrid');
+            grid.innerHTML = '';
+
+            for (let i = 1; i <= 300; i++) {
+                const isUnlocked = i <= window.maxUnlockedLevel;
+                const btn = document.createElement('button');
+                btn.className = `py-2 rounded-xl font-bold text-base border transition flex flex-col items-center justify-center ${
+                    isUnlocked
+                        ? 'bg-blue-600 hover:bg-blue-500 border-blue-400 text-white cursor-pointer'
+                        : 'bg-slate-800/80 border-slate-700/50 text-slate-600 cursor-not-allowed opacity-60'
+                }`;
+
+                btn.innerHTML = `
+                    <span>LV ${i}</span>
+                    <span class="text-[10px]">${isUnlocked ? '🔓' : '🔒'}</span>
+                `;
+
+                if (isUnlocked) {
+                    btn.onclick = () => {
+                        selectedLevel = i;
+                        startMatch('PVE');
+                        document.getElementById('levelSelectMenu').classList.add('hidden');
+                    };
+                }
+                grid.appendChild(btn);
+            }
+        }
+
+        function buildShopGrid() {
+            const grid = document.getElementById('shopGrid');
+            grid.innerHTML = '';
+
+            for (let i = 1; i <= 100; i++) {
+                const price = (i - 1) * 150;
+                const isOwned = window.ownedRackets.includes(i);
+                const isEquipped = window.equippedRacket === i;
+
+                const card = document.createElement('div');
+                card.className = `p-2 rounded-xl border flex flex-col items-center justify-between text-center ${
+                    isEquipped
+                        ? 'bg-indigo-900/80 border-indigo-400'
+                        : isOwned
+                        ? 'bg-slate-800 border-slate-600'
+                        : 'bg-slate-900 border-slate-800'
+                }`;
+
+                card.innerHTML = `
+                    <div class="text-xs font-bold text-slate-300">Vợt #${i}</div>
+                    <div class="my-1 text-2xl" style="color: hsl(${(i * 3.6) % 360}, 80%, 60%)">🏸</div>
+                    <div class="text-[10px] text-emerald-400">+${(i - 1) * 3}% Lực</div>
+                    <div class="text-xs font-bold text-amber-400 my-1">${price === 0 ? 'Miễn phí' : price + '$'}</div>
+                `;
+
+                const actionBtn = document.createElement('button');
+                actionBtn.className = 'w-full py-1 text-xs rounded-lg font-bold transition mt-1 ';
+
+                if (isEquipped) {
+                    actionBtn.className += 'bg-emerald-600 text-white cursor-default';
+                    actionBtn.innerText = 'ĐANG DÙNG';
+                } else if (isOwned) {
+                    actionBtn.className += 'bg-blue-600 hover:bg-blue-500 text-white';
+                    actionBtn.innerText = 'TRANG BỊ';
+                    actionBtn.onclick = () => {
+                        window.equippedRacket = i;
+                        window.saveUserData();
+                        buildShopGrid();
+                    };
+                } else {
+                    actionBtn.className += 'bg-amber-600 hover:bg-amber-500 text-white';
+                    actionBtn.innerText = 'MUA';
+                    actionBtn.onclick = () => {
+                        if (window.coins >= price) {
+                            window.coins -= price;
+                            window.ownedRackets.push(i);
+                            window.equippedRacket = i;
+                            window.saveUserData();
+                            buildShopGrid();
+                        } else {
+                            showAlert('Bạn không đủ tiền vàng!');
+                        }
+                    };
+                }
+
+                card.appendChild(actionBtn);
+                grid.appendChild(card);
+            }
+        }
+
+        function startMatch(mode) {
+            gameMode = mode;
+            p1.score = 0;
+            p2.score = 0;
+            p1.reset(200);
+            p2.reset(760);
+            shuttle.reset(1);
+
+            const p2Controls = document.getElementById('p2TouchControls');
+            if (p2Controls) {
+                if (mode === 'PVP') {
+                    p2Controls.classList.remove('hidden');
+                } else {
+                    p2Controls.classList.add('hidden');
+                }
+            }
+
+            gameState = 'PLAYING';
+            document.getElementById('quitMatchBtn').classList.remove('hidden');
+            sound.playSynthBGM('match');
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('levelSelectMenu').classList.add('hidden');
+            document.getElementById('shopModal').classList.add('hidden');
+        }
+
+        document.getElementById('pveBtn').onclick = () => {
+            sound.init();
+            buildLevelGrid();
+            document.getElementById('levelSelectMenu').classList.remove('hidden');
+        };
+
+        document.getElementById('cancelMatchmakingBtn').onclick = () => {
+            if (typeof window.cancelMatchmaking === 'function') window.cancelMatchmaking();
+            showAlert('❌ Đã hủy tìm trận đấu trực tuyến.');
+        };
+
+        document.getElementById('onlineCasualBtn').onclick = () => {
+            sound.init();
+            window.startOnlineMatchmaking('Đấu Thường');
+        };
+
+        document.getElementById('onlineRankedBtn').onclick = () => {
+            sound.init();
+            window.startOnlineMatchmaking('Đấu Xếp Hạng');
+        };
+
+        document.getElementById('pvpBtn').onclick = () => {
+            sound.init();
+            startMatch('PVP');
+        };
+
+        document.getElementById('practiceBtn').onclick = () => {
+            sound.init();
+            startMatch('PRACTICE');
+        };
+
+        document.getElementById('shopBtn').onclick = () => {
+            sound.init();
+            buildShopGrid();
+            document.getElementById('shopModal').classList.remove('hidden');
+        };
+
+        document.getElementById('backFromLevelBtn').onclick = () => {
+            document.getElementById('levelSelectMenu').classList.add('hidden');
+        };
+
+        document.getElementById('backFromShopBtn').onclick = () => {
+            document.getElementById('shopModal').classList.add('hidden');
+        };
+
+        const musicPopover = document.getElementById('musicPopover');
+        document.getElementById('customMusicDropdownBtn').onclick = (e) => {
+            e.stopPropagation();
+            musicPopover.classList.toggle('hidden');
+        };
+
+        document.addEventListener('click', (e) => {
+            if (!musicPopover.contains(e.target) && e.target.id !== 'customMusicDropdownBtn') {
+                musicPopover.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('menuMusicInput').onchange = (e) => {
+            if (e.target.files[0]) {
+                sound.init();
+                sound.setCustomTrack('menu', e.target.files[0]);
+            }
+        };
+
+        document.getElementById('matchMusicInput').onchange = (e) => {
+            if (e.target.files[0]) {
+                sound.init();
+                sound.setCustomTrack('match', e.target.files[0]);
+            }
+        };
+
+        document.getElementById('endingMusicInput').onchange = (e) => {
+            if (e.target.files[0]) {
+                sound.init();
+                sound.setCustomTrack('ending', e.target.files[0]);
+            }
+        };
+
+        document.getElementById('bgmToggleBtn').onclick = () => {
+            sound.init();
+            if (sound.currentType) {
+                sound.stopBGM();
+                document.getElementById('bgmToggleBtn').innerText = '🔇 Tắt Âm Thanh';
+                document.getElementById('bgmToggleBtn').className = 'bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded-lg text-slate-300 border border-slate-500 transition';
+            } else {
+                let targetTrack = 'menu';
+                if (gameState === 'PLAYING') targetTrack = 'match';
+                if (gameState === 'ENDING') targetTrack = 'ending';
+                sound.playSynthBGM(targetTrack);
+                document.getElementById('bgmToggleBtn').innerText = '🔊 Bật Âm Thanh';
+                document.getElementById('bgmToggleBtn').className = 'bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-lg text-white font-bold border border-blue-400/40 shadow-md transition';
+            }
+        };
+
+        window.onload = () => {
+            updateUI();
+            gameLoop();
+            
+            // Re-attach event listeners to ensure shop, level select, and mode buttons work reliably
+            const shopBtn = document.getElementById('shopBtn');
+            if (shopBtn) {
+                shopBtn.onclick = () => {
+                    sound.init();
+                    buildShopGrid();
+                    document.getElementById('shopModal').classList.remove('hidden');
+                };
+            }
+
+            const pveBtn = document.getElementById('pveBtn');
+            if (pveBtn) {
+                pveBtn.onclick = () => {
+                    sound.init();
+                    buildLevelGrid();
+                    document.getElementById('levelSelectMenu').classList.remove('hidden');
+                };
+            }
+
+            const pvpBtn = document.getElementById('pvpBtn');
+            if (pvpBtn) {
+                pvpBtn.onclick = () => {
+                    sound.init();
+                    startMatch('PVP');
+                };
+            }
+
+            const practiceBtn = document.getElementById('practiceBtn');
+            if (practiceBtn) {
+                practiceBtn.onclick = () => {
+                    sound.init();
+                    startMatch('PRACTICE');
+                };
+            }
+
+            const onlineCasualBtn = document.getElementById('onlineCasualBtn');
+            if (onlineCasualBtn) {
+                onlineCasualBtn.onclick = () => {
+                    sound.init();
+                    window.startOnlineMatchmaking('Đấu Thường');
+                };
+            }
+
+            const onlineRankedBtn = document.getElementById('onlineRankedBtn');
+            if (onlineRankedBtn) {
+                onlineRankedBtn.onclick = () => {
+                    sound.init();
+                    window.startOnlineMatchmaking('Đấu Xếp Hạng');
+                };
+            }
+            
+            // Auto start menu background sound on first interaction
+            document.body.addEventListener('click', () => {
+                if (!sound.currentType) {
+                    sound.init();
+                    sound.playSynthBGM('menu');
+                }
+            }, { once: true });
+            
+            function checkOrientation() {
+                // Auto rotate logic is handled cleanly via CSS media queries for performance
+            }
+            checkOrientation();
+            window.addEventListener('resize', checkOrientation);
+            window.addEventListener('orientationchange', checkOrientation);
+        };
+    </script>
+</body>
+</html>
